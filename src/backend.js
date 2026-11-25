@@ -24,3 +24,8 @@ export const getProfiles=token=>request('/rest/v1/profiles?select=user_id,displa
 
 export const getInvitations=token=>request('/rest/v1/invitations?select=id,classroom_id,expires_at,max_uses,uses,revoked',{token});
 export const revokeInvitation=(token,iid)=>rpc(token,'revoke_invitation',{iid});
+
+// Test account onboarding; public signup remains disabled in the interface.
+export const getOwnProfile=async(token,id)=>(await request('/rest/v1/profiles?select=user_id,display_name,username&user_id=eq.'+encodeURIComponent(id),{token}))[0];
+export const getOwnMembership=async(token,id)=>(await request('/rest/v1/memberships?select=user_id,role,status,classroom_id&user_id=eq.'+encodeURIComponent(id),{token}))[0];
+export const recoverPassword=email=>request('/auth/v1/recover',{method:'POST',body:{email}});
