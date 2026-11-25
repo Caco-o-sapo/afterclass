@@ -1,4 +1,4 @@
-// Staged adapter. No session persistence or public signup in this module.
+// Staged adapter. Test-only authentication adapter.
 const base='https://mcksvemxifqpdlctbclm.supabase.co';
 const key='sb_publishable_RUOpZIVaJMQZY2wck6_s0w_CrdU1Onk';
 async function request(path,{token,method='GET',body}={}){
@@ -26,7 +26,7 @@ export const getInvitations=token=>request('/rest/v1/invitations?select=id,class
 export const revokeInvitation=(token,iid)=>rpc(token,'revoke_invitation',{iid});
 
 // Test account onboarding; public signup remains disabled in the interface.
-export const getOwnProfile=async(token,id)=>(await request('/rest/v1/profiles?select=user_id,display_name,username&user_id=eq.'+encodeURIComponent(id),{token}))[0];
+export const getOwnProfile=async(token,id)=>(await request('/rest/v1/profiles?select=user_id,display_name,username,avatar&user_id=eq.'+encodeURIComponent(id),{token}))[0];
 export const getOwnMembership=async(token,id)=>(await request('/rest/v1/memberships?select=user_id,role,status,classroom_id&user_id=eq.'+encodeURIComponent(id),{token}))[0];
 export const recoverPassword=email=>request('/auth/v1/recover',{method:'POST',body:{email}});
 
@@ -46,3 +46,8 @@ export async function finishGoogleLogin(code){
  if(!verifier)throw Error('Sessão de teste expirada. Inicie novamente.');
  return request('/auth/v1/token?grant_type=pkce',{method:'POST',body:{auth_code:code,code_verifier:verifier}});
 }
+
+export const saveAvatar=(token,id,avatar)=>request('/rest/v1/profiles?user_id=eq.'+encodeURIComponent(id),{token,method:'PATCH',body:{avatar}});
+export const refreshSession=refresh_token=>request('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:{refresh_token}});
+export const getPreferences=async(token,id)=>(await request('/rest/v1/user_preferences?select=language,theme&user_id=eq.'+encodeURIComponent(id),{token}))[0];
+export const savePreferences=(token,id,preferences)=>request('/rest/v1/user_preferences?user_id=eq.'+encodeURIComponent(id),{token,method:'PATCH',body:preferences});
