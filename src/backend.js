@@ -21,3 +21,6 @@ export const redeemInvitation=(token,args)=>rpc(token,'redeem_invitation',args);
 
 export const getPrivateProfiles=token=>request('/rest/v1/private_profiles?select=user_id,real_name',{token});
 export const getProfiles=token=>request('/rest/v1/profiles?select=user_id,display_name,username',{token});
+
+export const getInvitations=token=>request('/rest/v1/invitations?select=id,classroom_id,expires_at,max_uses,uses,revoked',{token});
+export const revokeInvitation=(token,iid)=>rpc(token,'revoke_invitation',{iid});
