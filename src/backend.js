@@ -29,3 +29,20 @@ export const revokeInvitation=(token,iid)=>rpc(token,'revoke_invitation',{iid});
 export const getOwnProfile=async(token,id)=>(await request('/rest/v1/profiles?select=user_id,display_name,username&user_id=eq.'+encodeURIComponent(id),{token}))[0];
 export const getOwnMembership=async(token,id)=>(await request('/rest/v1/memberships?select=user_id,role,status,classroom_id&user_id=eq.'+encodeURIComponent(id),{token}))[0];
 export const recoverPassword=email=>request('/auth/v1/recover',{method:'POST',body:{email}});
+
+// OAuth PKCE test flow: verifier is temporary, tokens remain in memory.
+export async function startGoogleLogin(){
+ const bytes=crypto.getRandomValues(new Uint8Array(32));
+ const encode=b=>btoa(String.fromCharCode(...b)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+ const verifier=encode(bytes);
+ const challenge=encode(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(verifier))));
+ sessionStorage.setItem('afterclass_pkce',verifier);
+ const params=new URLSearchParams({provider:'google',redirect_to:location.origin+'/',code_challenge:challenge,code_challenge_method:'s256'});
+ location.assign(base+'/auth/v1/authorize?'+params);
+}
+export async function finishGoogleLogin(code){
+ const verifier=sessionStorage.getItem('afterclass_pkce');
+ sessionStorage.removeItem('afterclass_pkce');
+ if(!verifier)throw Error('Sessão de teste expirada. Inicie novamente.');
+ return request('/auth/v1/token?grant_type=pkce',{method:'POST',body:{auth_code:code,code_verifier:verifier}});
+}
