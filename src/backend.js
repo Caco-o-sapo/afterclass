@@ -18,3 +18,6 @@ export const createClassroom=(token,args)=>rpc(token,'create_classroom',args);
 export const createInvitation=(token,args)=>rpc(token,'create_invitation',args);
 export const approveStudents=(token,ids)=>rpc(token,'approve_students',{ids});
 export const redeemInvitation=(token,args)=>rpc(token,'redeem_invitation',args);
+
+export const getPrivateProfiles=token=>request('/rest/v1/private_profiles?select=user_id,real_name',{token});
+export const getProfiles=token=>request('/rest/v1/profiles?select=user_id,display_name,username',{token});
