@@ -34,7 +34,7 @@ function TopicIcon({name,tone='violet'}){return <span className={'ac-topic-icon 
 function App(){
  const query=new URLSearchParams(location.search);
  const adminPortal=query.get('portal')==='admin'&&!query.has('code')&&!sessionStorage.getItem('afterclass_pkce');
- const [realAccount,setAccount]=useState(null),[preview,setPreview]=useState(false),[level,setLevel]=useState('w4');
+ const [realAccount,setAccount]=useState(null),[preview,setPreview]=useState(false),[level,setLevel]=useState(()=>adminPortal&&BOOKS.some(b=>b.id===sessionStorage.getItem('ac_admin_preview_book'))?sessionStorage.getItem('ac_admin_preview_book'):'w4');
  const selectedBook=BOOKS.find(b=>b.id===level)||BOOKS.find(b=>b.id==='w4');
  const account=preview?{displayName:'Test Student',book:selectedBook,room:{name:'DEMO '+selectedBook.label}}:realAccount;
  const experience=account?.book?.experience||'adult';
@@ -53,19 +53,21 @@ function App(){
  useEffect(()=>{const q=window.matchMedia('(prefers-color-scheme: dark)');const change=e=>setSystemDark(e.matches);q.addEventListener('change',change);return()=>q.removeEventListener('change',change)},[]);
  useEffect(()=>{document.documentElement.lang=lang==='en'?'en':'pt-BR'},[lang]);
  useEffect(()=>{if(realAccount&&!preview)localStorage.setItem('ac_last_page',page)},[page,realAccount,preview]);
- useEffect(()=>{if(!preview)localStorage.setItem('ac_channel_v2',channel)},[channel,preview]);
+ useEffect(()=>{if(!adminPortal&&!preview)localStorage.setItem('ac_channel_v2',channel)},[channel,preview,adminPortal]);
+ useEffect(()=>{if(preview){sessionStorage.setItem('ac_admin_preview_page',page);sessionStorage.setItem('ac_admin_preview_book',level)}},[preview,page,level]);
  useEffect(()=>{setCompleted([])},[account?.book?.id,preview]);
  useEffect(()=>{if(!account){setPosts([]);setDraft('');setCompleted([])}},[!!account]);
  function go(p){setPage(p);window.scrollTo(0,0)}
  function changeLang(){const next=lang==='pt'?'en':'pt';localStorage.setItem('ac_lang',next);setLang(next)}
  function theme(){const next=themeMode==='system'?'light':themeMode==='light'?'dark':'system';localStorage.setItem('theme',next);setThemeMode(next)}
  function discussion(c){setChannel(c);setDraft('');go('community')}
- function togglePreview(open){setPreview(open);setDraft('');setPosts([]);setCompleted([]);if(open)setPage('home');window.scrollTo(0,0)}
+ function togglePreview(open){setPreview(open);setDraft('');setPosts([]);setCompleted([]);if(open){sessionStorage.setItem('ac_admin_view','student');const previous=sessionStorage.getItem('ac_admin_preview_page');setPage(NAV.some(x=>x[0]===previous)?previous:'home')}else{sessionStorage.removeItem('ac_admin_view')}window.scrollTo(0,0)}
+ function restorePreview(){if(sessionStorage.getItem('ac_admin_view')==='student')togglePreview(true)}
  const navButton=([id])=><button key={id} className={page===id?'selected':''} aria-current={page===id?'page':undefined} onClick={()=>go(id)}><Icon name={id} size={21}/><span>{label(id)}</span></button>;
  const title=experience==='preteen'?tr('Vamos explorar!','Let’s explore!'):experience==='teen'?tr('Pronto para o desafio?','Ready for a challenge?'):tr('Seu inglês, um dia de cada vez.','Your English, one day at a time.');
  const visibleLibrary=LIBRARY.filter(x=>(libraryKind==='all'||x.kind===libraryKind)&&[x.title,x.pt,x.en,x.example].join(' ').toLowerCase().includes(search.trim().toLowerCase()));
  return <>
- {adminPortal&&<div hidden={preview}><AdminPortal lang={lang} themeMode={themeMode} onLanguage={changeLang} onTheme={theme} dark={dark} onPreview={togglePreview}/></div>}
+ {adminPortal&&<div hidden={preview}><AdminPortal lang={lang} themeMode={themeMode} onLanguage={changeLang} onTheme={theme} dark={dark} onPreview={togglePreview} onRestorePreview={restorePreview}/></div>}
  {(!adminPortal||preview)&&<div className={'app ac-app'+(dark?' dark':'')+(!account?' auth-gate':'')+(preview?' student-preview':'')+' level-'+experience}>
  <aside className="ac-sidebar"><button className="brand ac-brand" onClick={()=>go('home')}>afterclass<span>.</span></button><small className="ac-brand-tag">ENGLISH BEYOND THE CLASSROOM</small>
  <div className="ac-nav-label">{tr('ESPAÇO DO ALUNO','STUDENT SPACE')}</div>

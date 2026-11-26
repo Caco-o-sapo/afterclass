@@ -1,21 +1,34 @@
-import React,{useState,useEffect} from 'react';
-import {signIn,signOut,getUser} from './backend.js';
+import React,{useState,useEffect,useRef} from 'react';
+import {signIn,signOut,getUser,refreshSession} from './backend.js';
 import AdminDemo from './AdminDemo.jsx';
 import AdminTest from './AdminTest.jsx';
 
-export default function AdminPortal({lang,themeMode,onLanguage,onTheme,dark,onPreview}){
+const SESSION_KEY='ac_admin_test_session_v1';
+function readSession(){try{const s=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');return s?.access_token&&s?.refresh_token&&Number.isFinite(s?.expires_at)?s:null}catch{return null}}
+function storeSession(s){const saved={access_token:s.access_token,refresh_token:s.refresh_token,expires_at:s.expires_at||Math.floor(Date.now()/1000)+(s.expires_in||3600)};sessionStorage.setItem(SESSION_KEY,JSON.stringify(saved));return saved}
+export default function AdminPortal({lang,themeMode,onLanguage,onTheme,dark,onPreview,onRestorePreview}){
  const tr=(pt,en)=>lang==='en'?en:pt;
- const [session,S]=useState(null),[busy,B]=useState(false),[error,E]=useState(''),[authorized,A]=useState(false);
- async function enter(e){
-  e.preventDefault();const f=new FormData(e.currentTarget);e.currentTarget.reset();B(true);E('');
-  let s;
-  try{s=await signIn(f.get('email'),f.get('password'));const u=await getUser(s.access_token);if(!u?.id||!u.email_confirmed_at)throw Error(tr('Confirme o e-mail da conta de teste.','Confirm the test account email.'));S({token:s.access_token,expires:s.expires_at||Math.floor(Date.now()/1000)+(s.expires_in||3600)})}
-  catch(err){if(s?.access_token)await signOut(s.access_token).catch(()=>{});E(err.message)}
-  finally{B(false)}
+ const [session,S]=useState(null),[busy,B]=useState(true),[error,E]=useState(''),[authorized,A]=useState(false);
+ const current=useRef(null),generation=useRef(0),flight=useRef(null);
+ function clear(){generation.current++;current.current=null;sessionStorage.removeItem(SESSION_KEY);sessionStorage.removeItem('ac_admin_view');S(null);onPreview(false)}
+ async function verify(s){const u=await getUser(s.access_token);if(!u?.id||!u.email_confirmed_at)throw Error(tr('Confirme o e-mail da conta de teste.','Confirm the test account email.'));return u}
+ async function ensureSession(force=false){
+  if(flight.current)return flight.current;
+  const old=current.current||readSession();if(!old)throw Error('Session missing');
+  const version=generation.current;
+  const task=(async()=>{let s=old;if(s.expires_at<=Date.now()/1000+90){const next=await refreshSession(s.refresh_token);if(version!==generation.current)throw Error('Session closed');s=storeSession(next)}if(force||s!==old)await verify(s);if(version!==generation.current)throw Error('Session closed');current.current=s;S(s);return s})();
+  flight.current=task;try{return await task}finally{if(flight.current===task)flight.current=null}
  }
- async function exit(){onPreview(false);const t=session?.token;S(null);if(t)await signOut(t).catch(()=>{});E('')}
- useEffect(()=>{if(!session)return;const timer=setInterval(()=>{if(Date.now()/1000>=session.expires){onPreview(false);S(null);E(tr('Sessão de teste expirada. Entre novamente.','Test session expired. Sign in again.'))}},1000);return()=>clearInterval(timer)},[session,lang]);
+ useEffect(()=>{let active=true;const saved=readSession();if(!saved){B(false);return}ensureSession(true).then(()=>{if(active)onRestorePreview?.()}).catch(()=>{if(active){clear();E(tr('Sua sessão expirou. Entre novamente.','Your session expired. Sign in again.'))}}).finally(()=>{if(active)B(false)});return()=>{active=false;generation.current++}},[]);
+ async function enter(e){
+  e.preventDefault();const f=new FormData(e.currentTarget);e.currentTarget.reset();B(true);E('');let s;
+  try{s=await signIn(f.get('email'),f.get('password'));await verify(s);current.current=storeSession(s);S(current.current)}
+  catch(err){if(s?.access_token)await signOut(s.access_token).catch(()=>{});clear();E(err.message)}finally{B(false)}
+ }
+ async function exit(){const s=current.current;clear();E('');if(s?.access_token)await signOut(s.access_token).catch(()=>{})}
+ useEffect(()=>{if(!session)return;const check=()=>{if(document.visibilityState==='visible')ensureSession().catch(()=>{clear();E(tr('Sua sessão expirou. Entre novamente.','Your session expired. Sign in again.'))})};const timer=setInterval(check,30000);document.addEventListener('visibilitychange',check);return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',check)}},[!!session,lang]);
  const controls=<div className="header-controls"><button onClick={onLanguage}>{lang.toUpperCase()}</button><button onClick={onTheme} aria-label={tr('Alternar tema','Change theme')}>{themeMode==='system'?'◐':dark?'☾':'☀'}</button></div>;
+ if(busy&&!session)return <div className={'app auth-gate'+(dark?' dark':'')}><main><div className="content"><article role="status"><h2>{tr('Restaurando sessão…','Restoring session…')}</h2><p>{tr('Verificando sua conta de teste.','Checking your test account.')}</p></article></div></main></div>;
  if(session)return <div className={'app admin-workspace'+(dark?' dark':'')}><AdminDemo lang={lang} onExit={exit} controls={controls} onPreview={()=>onPreview(true)}/></div>;
  return <div className={'app auth-gate'+(dark?' dark':'')}><main><div className="content"><section className="account-shell entry-shell admin-entry">
  <div className="entry-top"><div className="entry-brand">afterclass<span>.</span><small className="portal-badge">ADMIN</small></div>{controls}</div>
