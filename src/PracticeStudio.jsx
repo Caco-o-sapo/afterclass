@@ -29,11 +29,12 @@ function Exercise({lesson,index,lang,done,onDone,onNext}){
  {feedback&&<div className={'practice-feedback '+feedback} role="status"><strong>{feedback==='correct'?tr('Muito bem!','Well done!'):tr('Tente outra vez.','Try again.')}</strong><p>{feedback==='correct'?tr('Resposta aceita: ','Accepted answer: ')+expected.join(' / '):tr('Dica: ','Hint: ')+(kind==='choice'?choice[3]:kind==='gap'?gap[2]:tr('Pense na ordem natural das palavras em inglês.','Think about natural English word order.'))}</p>{feedback==='correct'&&kind!=='order'&&<small>{kind==='choice'?choice[3]:gap[2]}</small>}{feedback==='correct'&&kind==='order'&&<button type="button" onClick={()=>speak(lesson.order)}>{tr('Ouvir frase','Read sentence aloud')}</button>}</div>}
  </form>}{speechError&&<p role="status">{speechError}</p>}</section>
 }
-export default function PracticeStudio({book,lang='pt',onProgress}){
+export default function PracticeStudio({book,lang='pt',onProgress,currentLesson}){
  const tr=(pt,en)=>lang==='en'?en:pt;const mapped=resolveBook(book),lessons=mapped?BANK[mapped.id]:[];
- const [number,N]=useState(lessons[0]?.number??null),[index,I]=useState(0),[progress,P]=useState({}),[attempt,A]=useState(0);
+ const [number,N]=useState(lessons.find(l=>l.number===currentLesson)?.number??lessons[0]?.number??null),[index,I]=useState(0),[progress,P]=useState({}),[attempt,A]=useState(0);
  const lesson=lessons.find(l=>l.number===number)||lessons[0],done=progress[lesson?.number]||[];
  useEffect(()=>{onProgress?.(done)},[number,progress,onProgress]);
+ useEffect(()=>{if(lessons.some(l=>l.number===currentLesson)){N(currentLesson);I(0);A(a=>a+1)}},[currentLesson]);
  function choose(n){N(n);I(0);A(a=>a+1)}
  function mark(i){P(old=>{const previous=old[lesson.number]||[];return previous.includes(i)?old:{...old,[lesson.number]:[...previous,i]}})}
  function reset(){P(old=>({...old,[lesson.number]:[]}));I(0);A(a=>a+1)}

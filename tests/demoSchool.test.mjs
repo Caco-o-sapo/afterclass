@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {webcrypto} from 'node:crypto';
+if(!globalThis.crypto)Object.defineProperty(globalThis,'crypto',{value:webcrypto});
+const map=new Map();
+Object.defineProperty(globalThis,'sessionStorage',{configurable:true,value:{getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,String(v)),removeItem:k=>map.delete(k)}});
+const {seedDemo,updateDemo,submitDemo,gradeDemo,totalPoints,scoreOf,pendingReview}=await import('../src/demoSchool.js');
+const read=()=>JSON.parse(map.get('afterclass_admin_demo_v1'));
+test('classroom assignment workflow: scope, objective scoring, manual grading, duplicate and archived protections',()=>{
+ const seed=seedDemo();updateDemo(seed);
+ const a=seed.assignments[0];
+ assert.equal(a.lesson,103);
+ assert.equal(totalPoints(a),10);
+ const answers=Object.fromEntries(a.questions.map(q=>[q.id,q.type==='open'?'Fictional student response':q.accepted[0]]));
+ assert.notEqual(submitDemo(a.id,'demo-student-1',answers),'','pending student must not submit');
+ assert.notEqual(submitDemo(a.id,'demo-student-4',answers),'','other classroom must not submit');
+ assert.notEqual(submitDemo(a.id,'demo-student-3',{}),'','incomplete submission must fail');
+ assert.equal(read().submissions.length,0);
+ assert.equal(submitDemo(a.id,'demo-student-3',answers),'');
+ const sub=read().submissions[0];assert.equal(scoreOf(sub),6);assert.equal(pendingReview(a,sub),true);
+ assert.notEqual(submitDemo(a.id,'demo-student-3',answers),'','duplicate blocked');
+ const open=a.questions.find(q=>q.type==='open');assert.equal(gradeDemo(sub.id,open.id,5,'too high'),false);
+ assert.equal(gradeDemo(sub.id,open.id,3.5,'Good work'),true);
+ const graded=read().submissions[0];assert.equal(scoreOf(graded),9.5);assert.equal(pendingReview(a,graded),false);assert.equal(graded.grades[open.id].feedback,'Good work');
+ updateDemo(d=>({...d,assignments:d.assignments.map(x=>x.id===a.id?{...x,status:'archived'}:x),students:d.students.map(s=>s.id==='demo-student-1'?{...s,status:'approved'}:s)}));
+ assert.notEqual(submitDemo(a.id,'demo-student-1',answers),'','archived assignment blocked');
+ assert.equal(read().submissions.length,1);
+});
+test('incorrect objective response receives zero; reset removes demonstration submissions',()=>{
+ const d=seedDemo();updateDemo(d);const a=d.assignments[0];
+ const answers=Object.fromEntries(a.questions.map(q=>[q.id,q.type==='open'?'Sample fictional response':q.accepted[0]]));answers[a.questions[0].id]='incorrect response';
+ assert.equal(submitDemo(a.id,'demo-student-3',answers),'');
+ assert.equal(scoreOf(read().submissions[0]),4);
+ updateDemo(seedDemo());assert.equal(read().submissions.length,0);
+});
