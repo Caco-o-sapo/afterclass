@@ -3,7 +3,7 @@ import {signIn,signOut,getUser} from './backend.js';
 import AdminDemo from './AdminDemo.jsx';
 import AdminTest from './AdminTest.jsx';
 
-export default function AdminPortal({lang,themeMode,onLanguage,onTheme,dark}){
+export default function AdminPortal({lang,themeMode,onLanguage,onTheme,dark,onPreview}){
  const tr=(pt,en)=>lang==='en'?en:pt;
  const [session,S]=useState(null),[busy,B]=useState(false),[error,E]=useState(''),[authorized,A]=useState(false);
  async function enter(e){
@@ -13,10 +13,10 @@ export default function AdminPortal({lang,themeMode,onLanguage,onTheme,dark}){
   catch(err){if(s?.access_token)await signOut(s.access_token).catch(()=>{});E(err.message)}
   finally{B(false)}
  }
- async function exit(){const t=session?.token;S(null);if(t)await signOut(t).catch(()=>{});E('')}
- useEffect(()=>{if(!session)return;const timer=setInterval(()=>{if(Date.now()/1000>=session.expires){S(null);E(tr('Sessão de teste expirada. Entre novamente.','Test session expired. Sign in again.'))}},1000);return()=>clearInterval(timer)},[session,lang]);
+ async function exit(){onPreview(false);const t=session?.token;S(null);if(t)await signOut(t).catch(()=>{});E('')}
+ useEffect(()=>{if(!session)return;const timer=setInterval(()=>{if(Date.now()/1000>=session.expires){onPreview(false);S(null);E(tr('Sessão de teste expirada. Entre novamente.','Test session expired. Sign in again.'))}},1000);return()=>clearInterval(timer)},[session,lang]);
  const controls=<div className="header-controls"><button onClick={onLanguage}>{lang.toUpperCase()}</button><button onClick={onTheme} aria-label={tr('Alternar tema','Change theme')}>{themeMode==='system'?'◐':dark?'☾':'☀'}</button></div>;
- if(session)return <div className={'app admin-workspace'+(dark?' dark':'')}><AdminDemo lang={lang} onExit={exit} controls={controls}/></div>;
+ if(session)return <div className={'app admin-workspace'+(dark?' dark':'')}><AdminDemo lang={lang} onExit={exit} controls={controls} onPreview={()=>onPreview(true)}/></div>;
  return <div className={'app auth-gate'+(dark?' dark':'')}><main><div className="content"><section className="account-shell entry-shell admin-entry">
  <div className="entry-top"><div className="entry-brand">afterclass<span>.</span><small className="portal-badge">ADMIN</small></div>{controls}</div>
  <div className="account-layout entry-layout"><div className="entry-visual"><span className="entry-kicker">AFTER CLASS · ADMINISTRATION</span><h1>{tr('Seu espaço de gestão.','Your administration workspace.')}</h1><p>{tr('Organize turmas, acompanhe convites e experimente o fluxo de aprovação em um ambiente de testes.','Organize classrooms, track invitations and explore approval workflows in a test environment.')}</p><div className="entry-art" aria-hidden="true"><span>▤</span><span>✓</span><span>◎</span></div><div className="entry-tags"><span>{tr('Turmas','Classrooms')}</span><span>{tr('Convites','Invitations')}</span><span>{tr('Aprovações','Approvals')}</span></div></div>
