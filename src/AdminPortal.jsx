@@ -6,7 +6,7 @@ import AdminTest from './AdminTest.jsx';
 const SESSION_KEY='ac_admin_test_session_v1';
 function readSession(){try{const s=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');return s?.access_token&&s?.refresh_token&&Number.isFinite(s?.expires_at)?s:null}catch{return null}}
 function storeSession(s){const saved={access_token:s.access_token,refresh_token:s.refresh_token,expires_at:s.expires_at||Math.floor(Date.now()/1000)+(s.expires_in||3600)};sessionStorage.setItem(SESSION_KEY,JSON.stringify(saved));return saved}
-export default function AdminPortal({lang,themeMode,onLanguage,onTheme,dark,onPreview,onRestorePreview}){
+export default function AdminPortal({lang,themeMode,onLanguage,onTheme,dark,onPreview,onRestorePreview,onPreviewStudent}){
  const tr=(pt,en)=>lang==='en'?en:pt;
  const [session,S]=useState(null),[busy,B]=useState(true),[error,E]=useState(''),[authorized,A]=useState(false);
  const current=useRef(null),generation=useRef(0),flight=useRef(null);
@@ -29,7 +29,7 @@ export default function AdminPortal({lang,themeMode,onLanguage,onTheme,dark,onPr
  useEffect(()=>{if(!session)return;const check=()=>{if(document.visibilityState==='visible')ensureSession().catch(()=>{clear();E(tr('Sua sessão expirou. Entre novamente.','Your session expired. Sign in again.'))})};const timer=setInterval(check,30000);document.addEventListener('visibilitychange',check);return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',check)}},[!!session,lang]);
  const controls=<div className="header-controls"><button onClick={onLanguage}>{lang.toUpperCase()}</button><button onClick={onTheme} aria-label={tr('Alternar tema','Change theme')}>{themeMode==='system'?'◐':dark?'☾':'☀'}</button></div>;
  if(busy&&!session)return <div className={'app auth-gate'+(dark?' dark':'')}><main><div className="content"><article role="status"><h2>{tr('Restaurando sessão…','Restoring session…')}</h2><p>{tr('Verificando sua conta de teste.','Checking your test account.')}</p></article></div></main></div>;
- if(session)return <div className={'app admin-workspace'+(dark?' dark':'')}><AdminDemo lang={lang} onExit={exit} controls={controls} onPreview={()=>onPreview(true)}/></div>;
+ if(session)return <div className={'app admin-workspace'+(dark?' dark':'')}><AdminDemo lang={lang} onExit={exit} controls={controls} onPreview={()=>onPreview(true)} onPreviewStudent={onPreviewStudent}/></div>;
  return <div className={'app auth-gate'+(dark?' dark':'')}><main><div className="content"><section className="account-shell entry-shell admin-entry">
  <div className="entry-top"><div className="entry-brand">afterclass<span>.</span><small className="portal-badge">ADMIN</small></div>{controls}</div>
  <div className="account-layout entry-layout"><div className="entry-visual"><span className="entry-kicker">AFTER CLASS · ADMINISTRATION</span><h1>{tr('Seu espaço de gestão.','Your administration workspace.')}</h1><p>{tr('Organize turmas, acompanhe convites e experimente o fluxo de aprovação em um ambiente de testes.','Organize classrooms, track invitations and explore approval workflows in a test environment.')}</p><div className="entry-art" aria-hidden="true"><span>▤</span><span>✓</span><span>◎</span></div><div className="entry-tags"><span>{tr('Turmas','Classrooms')}</span><span>{tr('Convites','Invitations')}</span><span>{tr('Aprovações','Approvals')}</span></div></div>
